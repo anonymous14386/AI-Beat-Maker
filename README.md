@@ -1,5 +1,7 @@
 # AI Sample Sequencer 🎵
 
+test
+
 This web application uses a local AI model (via Ollama) to generate playable 4-bar drum loops from your personal sample library. You describe the beat you want, and the AI writes a "recipe" using your own samples, which can then be played back in the browser, downloaded as a WAV file, or recreated in your DAW.
 
 ## Features
