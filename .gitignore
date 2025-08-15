@@ -1,0 +1,15 @@
+# Ignore the massive sample library
+Organized_Library_Final/
+
+# Ignore the generated database
+sample_database.csv
+
+# Ignore Python virtual environment
+venv/
+
+# Ignore macOS system files
+.DS_Store
+
+# Ignore Python cache files
+__pycache__/
+*.pyc

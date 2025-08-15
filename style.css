@@ -1,0 +1,68 @@
+body {
+    background-color: #121212;
+    color: #e0e0e0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    margin: 0;
+}
+
+.container {
+    background-color: #1e1e1e;
+    padding: 2rem;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+    text-align: center;
+    width: 90%;
+    max-width: 500px;
+}
+
+h1 {
+    margin-top: 0;
+    color: #bb86fc; /* A nice purple accent */
+}
+
+button {
+    background-color: #6200ee;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    font-size: 1rem;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    margin: 0.5rem;
+}
+
+button:hover {
+    background-color: #3700b3;
+}
+
+.player, .ai-section {
+    margin-top: 2rem;
+    padding-top: 1rem;
+    border-top: 1px solid #333;
+}
+
+.volume-control {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-top: 1rem;
+}
+
+label {
+    margin-right: 10px;
+}
+
+.response-box {
+    background-color: #2c2c2c;
+    margin-top: 1rem;
+    padding: 1rem;
+    border-radius: 8px;
+    text-align: left;
+    min-height: 100px;
+    white-space: pre-wrap; /* This helps format the AI response nicely */
+}
