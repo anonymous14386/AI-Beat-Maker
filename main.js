@@ -1,5 +1,8 @@
 window.addEventListener('load', () => {
     // --- 1. INITIAL SETUP ---
+    // This URL is correct for running on the same machine.
+    const OLLAMA_SERVER_URL = "http://localhost:11434"; 
+
     const audioContext = new AudioContext();
     const masterGainNode = audioContext.createGain();
     masterGainNode.connect(audioContext.destination);
@@ -61,10 +64,13 @@ window.addEventListener('load', () => {
 
     // --- 4. SEQUENCER ENGINE ---
     function playSample(filename, time, context = audioContext) {
+        if (context.state === 'suspended') {
+            context.resume();
+        }
         if (loadedSamples[filename]) {
             const source = context.createBufferSource();
             source.buffer = loadedSamples[filename];
-            source.connect(context.destination);
+            source.connect(context.destination === masterGainNode ? masterGainNode : context.destination);
             source.start(time);
         }
     }
@@ -100,7 +106,6 @@ window.addEventListener('load', () => {
     }
     
     // --- 5. AI INTEGRATION & PROMPT ENGINEERING ---
-    // (This section is unchanged from the previous version)
     function findSamples(category, count = 5) {
         return sampleDatabase
             .filter(s => s.category && s.category.toLowerCase().includes(category.toLowerCase()))
@@ -138,7 +143,7 @@ window.addEventListener('load', () => {
         statusDiv.textContent = '🤖 Asking the AI to generate a beat...';
 
         try {
-            const response = await fetch('http://localhost:11434/api/generate', {
+            const response = await fetch(`${OLLAMA_SERVER_URL}/api/generate`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ model: "llama3", prompt: finalPrompt, stream: false, format: "json" }),
@@ -156,7 +161,7 @@ window.addEventListener('load', () => {
             currentSequence = sequenceData;
             await loadSamplesForSequence(currentSequence);
             renderRecipe(currentSequence);
-            downloadButton.disabled = false; // Enable download button
+            downloadButton.disabled = false;
 
         } catch (error) {
             console.error("Error with AI generation:", error);
@@ -168,6 +173,7 @@ window.addEventListener('load', () => {
     }
 
     // --- 6. OFFLINE RENDERING & DOWNLOAD ---
+    // ... (This section is unchanged)
     function bufferToWav(buffer) {
         const numOfChan = buffer.numberOfChannels,
             len = buffer.length * numOfChan * 2 + 44,
@@ -175,35 +181,15 @@ window.addEventListener('load', () => {
             view = new DataView(wavBuffer),
             channels = [],
             sampleRate = buffer.sampleRate;
-
         let offset = 0, pos = 0;
-
-        const setUint16 = (data) => {
-            view.setUint16(pos, data, true);
-            pos += 2;
-        };
-        const setUint32 = (data) => {
-            view.setUint32(pos, data, true);
-            pos += 4;
-        };
-
-        setUint32(0x46464952); // "RIFF"
-        setUint32(len - 8); // file length - 8
-        setUint32(0x45564157); // "WAVE"
-        setUint32(0x20746d66); // "fmt " chunk
-        setUint32(16); // length = 16
-        setUint16(1); // PCM (uncompressed)
-        setUint16(numOfChan);
-        setUint32(sampleRate);
-        setUint32(sampleRate * 2 * numOfChan); // avg. bytes/sec
-        setUint16(numOfChan * 2); // block-align
-        setUint16(16); // 16-bit
-        setUint32(0x61746164); // "data" - chunk
-        setUint32(len - pos - 4); // chunk length
-
-        for (let i = 0; i < buffer.numberOfChannels; i++)
-            channels.push(buffer.getChannelData(i));
-
+        const setUint16 = (data) => { view.setUint16(pos, data, true); pos += 2; };
+        const setUint32 = (data) => { view.setUint32(pos, data, true); pos += 4; };
+        setUint32(0x46464952); setUint32(len - 8); setUint32(0x45564157);
+        setUint32(0x20746d66); setUint32(16); setUint16(1); setUint16(numOfChan);
+        setUint32(sampleRate); setUint32(sampleRate * 2 * numOfChan);
+        setUint16(numOfChan * 2); setUint16(16); setUint32(0x61746164);
+        setUint32(len - pos - 4);
+        for (let i = 0; i < buffer.numberOfChannels; i++) channels.push(buffer.getChannelData(i));
         while (pos < len) {
             for (let i = 0; i < numOfChan; i++) {
                 let sample = Math.max(-1, Math.min(1, channels[i][offset]));
@@ -220,80 +206,58 @@ window.addEventListener('load', () => {
         if (!currentSequence.length) return;
         statusDiv.textContent = 'Rendering beat to WAV file...';
         downloadButton.disabled = true;
-
         const totalBeats = 16;
         const timePerBeat = 60.0 / bpm;
         const duration = totalBeats * timePerBeat;
-        
         const offlineContext = new OfflineAudioContext(2, 44100 * duration, 44100);
-
         currentSequence.forEach(track => {
             track.steps.forEach(step => {
-                if (step.file) {
-                    playSample(step.file, step.beat * timePerBeat, offlineContext);
-                }
+                if (step.file) playSample(step.file, step.beat * timePerBeat, offlineContext);
             });
         });
-
         const renderedBuffer = await offlineContext.startRendering();
         const wavBlob = bufferToWav(renderedBuffer);
-        
         const url = URL.createObjectURL(wavBlob);
         const a = document.createElement('a');
-        a.style.display = 'none';
-        a.href = url;
-        a.download = `ai-beat-${bpm}bpm.wav`;
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
-
+        a.style.display = 'none'; a.href = url; a.download = `ai-beat-${bpm}bpm.wav`;
+        document.body.appendChild(a); a.click();
+        window.URL.revokeObjectURL(url); document.body.removeChild(a);
         statusDiv.textContent = 'Download complete!';
         downloadButton.disabled = false;
     }
 
     // --- 7. UI RENDERING & EVENT LISTENERS ---
+    // ... (This section is unchanged)
     function renderRecipe(sequence) {
         recipeOutputDiv.innerHTML = '';
         const table = document.createElement('table');
-        table.style.width = '100%';
-        table.style.borderCollapse = 'collapse';
-        table.style.textAlign = 'left';
-
+        table.style.width = '100%'; table.style.borderCollapse = 'collapse'; table.style.textAlign = 'left';
         sequence.forEach(track => {
             const row = table.insertRow();
             const nameCell = row.insertCell();
-            nameCell.style.fontWeight = 'bold';
-            nameCell.style.padding = '8px';
-            nameCell.style.verticalAlign = 'top';
-            nameCell.style.width = '100px';
+            nameCell.style.fontWeight = 'bold'; nameCell.style.padding = '8px';
+            nameCell.style.verticalAlign = 'top'; nameCell.style.width = '100px';
             nameCell.textContent = track.name;
-
             const stepsCell = row.insertCell();
-            stepsCell.style.padding = '8px';
-            stepsCell.style.whiteSpace = 'pre-wrap';
+            stepsCell.style.padding = '8px'; stepsCell.style.whiteSpace = 'pre-wrap';
             stepsCell.style.wordBreak = 'break-word';
-            
             track.steps.forEach(step => {
                 const stepDiv = document.createElement('div');
                 const link = document.createElement('a');
                 link.href = `Organized_Library_Final/${step.file}`;
                 link.textContent = step.file;
-                link.download = step.file; 
-
+                link.download = step.file;
                 stepDiv.textContent = `Beat ${step.beat}: `;
                 stepDiv.appendChild(link);
                 stepsCell.appendChild(stepDiv);
             });
         });
-
         recipeOutputDiv.appendChild(table);
     }
 
     playButton.addEventListener('click', togglePlayback);
     aiButton.addEventListener('click', getAIResponse);
     downloadButton.addEventListener('click', renderBeatToWav);
-
     bpmSlider.addEventListener('input', (e) => {
         bpm = parseInt(e.target.value, 10);
         bpmValueSpan.textContent = bpm;
